@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Appointment Scheduler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .today-date {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .input-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        #appointmentInput {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        #appointmentInput:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .voice-btn {
+            background: #667eea;
+            color: white;
+            min-width: 60px;
+        }
+
+        .voice-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .voice-btn.listening {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .add-btn {
+            background: #10b981;
+            color: white;
+        }
+
+        .add-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .helper-text {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .appointments-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .appointment-item {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .appointment-item:hover {
+            transform: translateX(4px);
+        }
+
+        .appointment-item.upcoming {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .appointment-item.past {
+            opacity: 0.6;
+            border-left-color: #9ca3af;
+        }
+
+        .appointment-info {
+            flex: 1;
+        }
+
+        .appointment-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .appointment-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .notification-permission {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .notification-permission button {
+            background: #f59e0b;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .notification-permission button:hover {
+            background: #d97706;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 My Appointments</h1>
+            <div class="today-date" id="todayDate"></div>
+        </div>
+
+        <div id="notificationPermission" class="notification-permission" style="display: none;">
+            <span>Enable notifications to get reminders</span>
+            <button onclick="requestNotificationPermission()">Enable</button>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="appointmentInput" 
+                    placeholder="e.g., meeting with Laurie Friday at 2pm"
+                    onkeypress="handleKeyPress(event)"
+                />
+                <button class="voice-btn" id="voiceBtn" onclick="toggleVoiceInput()">🎤</button>
+                <button class="add-btn" onclick="addAppointment()">Add</button>
+            </div>
+            <div class="helper-text">
+                💡 Type or speak naturally: "dentist appointment tomorrow 3pm" or "call mom next Tuesday at 5"
+            </div>
+        </div>
+
+        <div class="appointments-section">
+            <h2 class="section-title">Today's Schedule</h2>
+            <div id="appointmentsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let appointments = [];
+        let recognition = null;
+        let notificationCheckInterval = null;
+
+        // Initialize
+        function init() {
+            loadAppointments();
+            updateTodayDate();
+            renderAppointments();
+            checkNotificationPermission();
+            startNotificationChecker();
+            
+            // Initialize speech recognition if available
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('appointmentInput').value = transcript;
+                    stopVoiceInput();
+                };
+                
+                recognition.onerror = function() {
+                    stopVoiceInput();
+                };
+                
+                recognition.onend = function() {
+                    stopVoiceInput();
+                };
+            } else {
+                document.getElementById('voiceBtn').style.display = 'none';
+            }
+        }
+
+        function updateTodayDate() {
+            const today = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('todayDate').textContent = today.toLocaleDateString('en-US', options);
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) return;
+            
+            const btn = document.getElementById('voiceBtn');
+            if (btn.classList.contains('listening')) {
+                stopVoiceInput();
+            } else {
+                startVoiceInput();
+            }
+        }
+
+        function startVoiceInput() {
+            const btn = document.getElementById('voiceBtn');
+            btn.classList.add('listening');
+            btn.textContent = '🔴';
+            recognition.start();
+        }
+
+        function stopVoiceInput() {
+            const btn = document.getElementById('voiceBtn');
+            btn.classList.remove('listening');
+            btn.textContent = '🎤';
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                addAppointment();
+            }
+        }
+
+        function parseNaturalLanguage(text) {
+            const now = new Date();
+            let appointmentDate = new Date();
+            let appointmentTime = null;
+            let title = text;
+
+            // Extract time (supports formats like "2pm", "2:30pm", "14:00", "2:30")
+            const timeRegex = /(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i;
+            const timeMatch = text.match(timeRegex);
+            
+            if (timeMatch) {
+                let hours = parseInt(timeMatch[1]);
+                const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                const meridiem = timeMatch[3];
+                
+                if (meridiem) {
+                    if (meridiem.toLowerCase() === 'pm' && hours !== 12) hours += 12;
+                    if (meridiem.toLowerCase() === 'am' && hours === 12) hours = 0;
+                }
+                
+                appointmentTime = { hours, minutes };
+                title = text.replace(timeMatch[0], '').trim();
+            }
+
+            // Extract date
+            const lowerText = text.toLowerCase();
+            
+            if (lowerText.includes('today')) {
+                // Keep appointmentDate as is
+                title = title.replace(/\btoday\b/i, '').trim();
+            } else if (lowerText.includes('tomorrow')) {
+                appointmentDate.setDate(appointmentDate.getDate() + 1);
+                title = title.replace(/\btomorrow\b/i, '').trim();
+            } else {
+                // Check for day names
+                const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const dayMatch = days.find(day => lowerText.includes(day));
+                
+                if (dayMatch) {
+                    const targetDay = days.indexOf(dayMatch);
+                    const currentDay = now.getDay();
+                    let daysUntil = targetDay - currentDay;
+                    if (daysUntil <= 0) daysUntil += 7;
+                    
+                    appointmentDate.setDate(appointmentDate.getDate() + daysUntil);
+                    title = title.replace(new RegExp(dayMatch, 'i'), '').trim();
+                }
+                
+                // Check for "next week", "next monday", etc.
+                if (lowerText.includes('next week')) {
+                    appointmentDate.setDate(appointmentDate.getDate() + 7);
+                    title = title.replace(/\bnext week\b/i, '').trim();
+                } else if (lowerText.includes('next')) {
+                    appointmentDate.setDate(appointmentDate.getDate() + 7);
+                    title = title.replace(/\bnext\b/i, '').trim();
+                }
+            }
+
+            // Set the time
+            if (appointmentTime) {
+                appointmentDate.setHours(appointmentTime.hours, appointmentTime.minutes, 0, 0);
+            } else {
+                // Default to current time + 1 hour if no time specified
+                appointmentDate.setHours(now.getHours() + 1, 0, 0, 0);
+            }
+
+            // Clean up title
+            title = title.replace(/\bat\b/i, '').trim();
+            title = title.replace(/\s+/g, ' ').trim();
+
+            return {
+                title: title || 'Appointment',
+                dateTime: appointmentDate
+            };
+        }
+
+        function addAppointment() {
+            const input = document.getElementById('appointmentInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+
+            const parsed = parseNaturalLanguage(text);
+            
+            const appointment = {
+                id: Date.now(),
+                title: parsed.title,
+                dateTime: parsed.dateTime.toISOString(),
+                notified: false
+            };
+
+            appointments.push(appointment);
+            saveAppointments();
+            renderAppointments();
+            input.value = '';
+        }
+
+        function deleteAppointment(id) {
+            appointments = appointments.filter(apt => apt.id !== id);
+            saveAppointments();
+            renderAppointments();
+        }
+
+        function renderAppointments() {
+            const container = document.getElementById('appointmentsList');
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const nextWeek = new Date(today);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+
+            // Sort appointments by date
+            appointments.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
+            // Filter appointments to show (today and future)
+            const relevantAppointments = appointments.filter(apt => {
+                const aptDate = new Date(apt.dateTime);
+                return aptDate >= today && aptDate < nextWeek;
+            });
+
+            if (relevantAppointments.length === 0) {
+                container.innerHTML = '<div class="empty-state">No appointments scheduled for the next week.<br>Add one above to get started! 🎯</div>';
+                return;
+            }
+
+            container.innerHTML = relevantAppointments.map(apt => {
+                const aptDate = new Date(apt.dateTime);
+                const isPast = aptDate < now;
+                const isUpcoming = aptDate >= now && aptDate <= new Date(now.getTime() + 30 * 60000); // Within 30 minutes
+                
+                const dateStr = formatDate(aptDate);
+                const timeStr = formatTime(aptDate);
+
+                return `
+                    <div class="appointment-item ${isPast ? 'past' : ''} ${isUpcoming ? 'upcoming' : ''}">
+                        <div class="appointment-info">
+                            <div class="appointment-title">${apt.title}</div>
+                            <div class="appointment-time">${dateStr} at ${timeStr}</div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteAppointment(${apt.id})">Delete</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDate(date) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const aptDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+            if (aptDay.getTime() === today.getTime()) return 'Today';
+            if (aptDay.getTime() === tomorrow.getTime()) return 'Tomorrow';
+            
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            return days[date.getDay()] + ', ' + date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+
+        function saveAppointments() {
+            localStorage.setItem('appointments', JSON.stringify(appointments));
+        }
+
+        function loadAppointments() {
+            const stored = localStorage.getItem('appointments');
+            if (stored) {
+                appointments = JSON.parse(stored);
+            }
+        }
+
+        function checkNotificationPermission() {
+            if ('Notification' in window) {
+                if (Notification.permission === 'default') {
+                    document.getElementById('notificationPermission').style.display = 'flex';
+                }
+            }
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        document.getElementById('notificationPermission').style.display = 'none';
+                    }
+                });
+            }
+        }
+
+        function startNotificationChecker() {
+            // Check every minute for upcoming appointments
+            notificationCheckInterval = setInterval(checkForUpcomingAppointments, 60000);
+            checkForUpcomingAppointments(); // Check immediately
+        }
+
+        function checkForUpcomingAppointments() {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const now = new Date();
+                
+                appointments.forEach(apt => {
+                    if (apt.notified) return;
+                    
+                    const aptDate = new Date(apt.dateTime);
+                    const timeDiff = aptDate - now;
+                    
+                    // Notify 15 minutes before
+                    if (timeDiff > 0 && timeDiff <= 15 * 60000) {
+                        new Notification('Upcoming Appointment', {
+                            body: `${apt.title} at ${formatTime(aptDate)}`,
+                            icon: '📅',
+                            tag: apt.id
+                        });
+                        
+                        apt.notified = true;
+                        saveAppointments();
+                    }
+                });
+            }
+        }
+
+        // Initialize on load
+        init();
+
+        // Update every minute
+        setInterval(() => {
+            renderAppointments();
+        }, 60000);
+    </script>
+</body>
+</html>
